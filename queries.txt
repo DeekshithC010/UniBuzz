@@ -1,0 +1,116 @@
+Total Registrations per Event
+sql-- Total registrations per event
+SELECT 
+    e.id AS event_id,
+    e.title AS event_title,
+    COUNT(r.id) AS total_registrations
+FROM events e
+LEFT JOIN registrations r ON e.id = r.event_id
+GROUP BY e.id, e.title
+ORDER BY total_registrations DESC;
+Attendance Percentage per Event
+sql-- Attendance percentage per event
+SELECT 
+    e.id AS event_id,
+    e.title AS event_title,
+    COUNT(DISTINCT r.student_id) AS total_registered,
+    COUNT(DISTINCT a.student_id) AS total_attended,
+    CASE 
+        WHEN COUNT(DISTINCT r.student_id) > 0 
+        THEN ROUND((CAST(COUNT(DISTINCT a.student_id) AS FLOAT) / COUNT(DISTINCT r.student_id)) * 100, 2)
+        ELSE 0 
+    END AS attendance_percentage
+FROM events e
+LEFT JOIN registrations r ON e.id = r.event_id
+LEFT JOIN attendance a ON e.id = a.event_id AND r.student_id = a.student_id
+GROUP BY e.id, e.title
+ORDER BY attendance_percentage DESC;
+Average Feedback Rating per Event
+sql-- Average feedback rating per event
+SELECT 
+    e.id AS event_id,
+    e.title AS event_title,
+    COUNT(f.id) AS total_feedback,
+    ROUND(AVG(CAST(f.rating AS FLOAT)), 2) AS average_rating
+FROM events e
+LEFT JOIN feedback f ON e.id = f.event_id
+GROUP BY e.id, e.title
+HAVING COUNT(f.id) > 0
+ORDER BY average_rating DESC;
+Events Popularity (by Registrations)
+sql-- Events sorted by popularity (registration count)
+SELECT 
+    e.id AS event_id,
+    e.title AS event_title,
+    e.type AS event_type,
+    e.date AS event_date,
+    c.name AS college_name,
+    COUNT(r.id) AS registration_count
+FROM events e
+LEFT JOIN registrations r ON e.id = r.event_id
+JOIN colleges c ON e.college_id = c.id
+WHERE e.status = 'Active'  -- Optional filter
+GROUP BY e.id, e.title, e.type, e.date, c.name
+ORDER BY registration_count DESC;
+Student Participation Report
+sql-- Individual student participation
+SELECT 
+    s.id AS student_id,
+    s.name AS student_name,
+    s.srn,
+    c.name AS college_name,
+    COUNT(DISTINCT r.event_id) AS events_registered,
+    COUNT(DISTINCT a.event_id) AS events_attended,
+    CASE 
+        WHEN COUNT(DISTINCT r.event_id) > 0 
+        THEN ROUND((CAST(COUNT(DISTINCT a.event_id) AS FLOAT) / COUNT(DISTINCT r.event_id)) * 100, 2)
+        ELSE 0 
+    END AS attendance_rate
+FROM students s
+JOIN colleges c ON s.college_id = c.id
+LEFT JOIN registrations r ON s.id = r.student_id
+LEFT JOIN attendance a ON s.id = a.student_id
+GROUP BY s.id, s.name, s.srn, c.name
+ORDER BY events_attended DESC;
+Top Most Active Students
+sql-- Top 3 most active students (by attendance)
+SELECT 
+    s.id AS student_id,
+    s.name AS student_name,
+    s.srn,
+    c.name AS college_name,
+    COUNT(a.id) AS events_attended
+FROM students s
+JOIN colleges c ON s.college_id = c.id
+JOIN attendance a ON s.id = a.student_id
+GROUP BY s.id, s.name, s.srn, c.name
+ORDER BY events_attended DESC
+LIMIT 3;
+Event Type Analysis
+sql-- Analysis by event type
+SELECT 
+    e.type AS event_type,
+    COUNT(DISTINCT e.id) AS total_events,
+    COUNT(DISTINCT r.student_id) AS total_registrations,
+    COUNT(DISTINCT a.student_id) AS total_attendance,
+    ROUND(AVG(CAST(f.rating AS FLOAT)), 2) AS average_rating
+FROM events e
+LEFT JOIN registrations r ON e.id = r.event_id
+LEFT JOIN attendance a ON e.id = a.event_id
+LEFT JOIN feedback f ON e.id = f.event_id
+GROUP BY e.type
+ORDER BY total_events DESC;
+Monthly Event Report
+sql-- Monthly event statistics
+SELECT 
+    strftime('%Y-%m', e.date) AS month,
+    COUNT(DISTINCT e.id) AS events_conducted,
+    COUNT(DISTINCT r.student_id) AS unique_participants,
+    COUNT(r.id) AS total_registrations,
+    COUNT(a.id) AS total_attendance
+FROM events e
+LEFT JOIN registrations r ON e.id = r.event_id
+LEFT JOIN attendance a ON e.id = a.event_id
+WHERE e.status = 'Completed'
+GROUP BY strftime('%Y-%m', e.date)
+ORDER BY month DESC;
